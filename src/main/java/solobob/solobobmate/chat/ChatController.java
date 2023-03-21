@@ -1,9 +1,9 @@
 package solobob.solobobmate.chat;
 
 import org.springframework.data.redis.listener.ChannelTopic;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -30,9 +30,11 @@ public class ChatController {
 
     private final TokenProvider tokenProvider;
     private final RedisPublisher redisPublisher;
+    private final RedisSubscriber redisSubscriber;
+    private final RedisLocationSubscriber redisLocationSubscriber;
     private final ChatService chatService;
     private final MemberRepository memberRepository;
-    private final SimpMessagingTemplate template;
+    private final RedisMessageListenerContainer redisMessageListenerContainer;
 
     public Member getMember() {
         Member member = memberRepository.findByLoginId(SecurityUtil.getCurrentMemberId()).orElseThrow(
@@ -56,6 +58,9 @@ public class ChatController {
 
         Chat chat = chatService.create(member, chatMessageDto);
 
+        // redis subscriber 설정
+        redisMessageListenerContainer.addMessageListener(redisSubscriber, new ChannelTopic("/sub/chat/" + chatMessageDto.getRoomId()));
+        // 메시지 발행
         redisPublisher.publish(new ChannelTopic("/sub/chat/" + chatMessageDto.getRoomId()), new ChatMessageResponseDto(chat));
     }
 
@@ -71,9 +76,14 @@ public class ChatController {
             SecurityContextHolder.getContext().setAuthentication(authentication);
         }
 
-        // 실시간 위치의 경우 redis 말고 Stomp 사용 -> RedisSubscriber에서 발행된 메시지를 ChatMessageResponseDto로 매핑하고 있기 때문
-        log.info("locationDto room id: {}", locationDto.getRoomId());
-        template.convertAndSend("/sub/position/"+locationDto.getRoomId(), locationDto);
+        // redis subscriber 설정
+        redisMessageListenerContainer.addMessageListener(redisLocationSubscriber, new ChannelTopic("/sub/position/" + locationDto.getRoomId()));
+        // 메시지 발행
+        redisPublisher.publish(new ChannelTopic("/sub/position/" + locationDto.getRoomId()), locationDto);
+
+        // Stomp 사용 코드
+//        log.info("locationDto room id: {}", locationDto.getRoomId());
+//        template.convertAndSend("/sub/position/"+locationDto.getRoomId(), locationDto);
     }
 
 

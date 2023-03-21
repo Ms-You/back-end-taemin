@@ -50,7 +50,6 @@ public class MemberController {
         memberService.likeUp(member);
     }
 
-    // 고쳐야됨
     @GetMapping("/myParty")
     public ResponseEntity myParty() {
         Member member = getMember();

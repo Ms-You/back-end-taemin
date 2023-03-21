@@ -66,7 +66,9 @@ public class PartyService {
     // 파티 나가기 (멤버만 가능, 방장x)
     @Transactional
     public void exit(Party party, Member member, Member owner) {
-        if (member.getOwner()) {
+        if (!member.getIsJoined()){
+            throw new SoloBobException(ErrorCode.PARTY_MY_PARTY);
+        } else if (member.getOwner()) {
             throw new SoloBobException(ErrorCode.PARTY_EXIT_OWNER);
         } else if (party.getMatchingStatus() == MatchingStatus.MATCHED) {
             // 매칭 상태에서 나가면 신고 1스택 쌓임 (탈주항목으로 신고한 것으로 됨)

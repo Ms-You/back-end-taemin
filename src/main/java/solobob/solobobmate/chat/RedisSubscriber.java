@@ -30,14 +30,16 @@ public class RedisSubscriber implements MessageListener {
     @Override
     public void onMessage(Message message, byte[] pattern) {
         try {
-            // redis에서 발행된 데이터를 받아 deserialize
+            // 발행된 데이터를 받아 deserialize
             String publishMessage = (String) redisTemplate.getStringSerializer().deserialize(message.getBody());
-            // ChatMessage 객채로 맵핑
+            // ChatMessage 객체로 매핑
             ChatMessageResponseDto roomMessage = objectMapper.readValue(publishMessage, ChatMessageResponseDto.class);
+
             Chat chat = chatRepository.findById(roomMessage.getChatId()).orElseThrow(
                     () -> new SoloBobException(ErrorCode.NOT_FOUND_CHATROOM)
             );
-            // Websocket 구독자에게 채팅 메시지 Send
+
+            // 해당 경로의 구독자에게 채팅 메시지 Send
             messagingTemplate.convertAndSend("/sub/chat/" + chat.getChatRoom().getId(), roomMessage);
         } catch (Exception e) {
             log.error(e.getMessage());
